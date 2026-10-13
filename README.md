@@ -18,10 +18,21 @@ The model uses **XGBoost** for prediction and **SHAP** for full explainability, 
 
 | Metric | Value |
 |--------|-------|
-| Dataset | ~15,000 employees |
-| Attrition rate | ~24% |
-| AUC-ROC | >0.95 |
-| Cross-validation | 5-fold stratified |
+| Dataset | 14,999 records → 11,991 after removing 3,008 exact duplicates |
+| Attrition rate | 16.6% (after deduplication) |
+| AUC-ROC (holdout, 2,399 employees) | 0.982 |
+| PR-AUC (holdout) | 0.965 (base rate 0.166) |
+| Cross-validation (train only, 5-fold stratified) | AUC-ROC 0.983 ± 0.005 · PR-AUC 0.966 ± 0.007 |
+
+### Revision (October 2026)
+
+The first version reported AUC-ROC 0.99. A review found three method issues, now fixed:
+
+1. **Duplicate rows.** 20% of the rows are exact copies, so 31% of the test set was already in the training set. They are now dropped before the split.
+2. **Early stopping on the test set.** The model chose its stopping point using the same data it was scored on. The tree count is now fixed.
+3. **Cross-validation of a different model on all rows.** CV now runs the same model on the training split only.
+
+Scored only on test rows it had never seen, the original model also gets about 0.98, so the conclusion holds: this is a strong, well-separated dataset. The full audit, a model tournament (Random Forest, LightGBM, Boruta) and a comparison with LLM-based decision models live in [business-classifier-benchmark](https://github.com/EduardoMoraga/business-classifier-benchmark) — [live report](https://eduardomoraga.github.io/business-classifier-benchmark/#hr).
 
 ### Risk Factors Identified (via SHAP)
 
@@ -53,7 +64,7 @@ employee-attrition-predictor/
 ├── notebooks/
 │   └── employee_attrition.ipynb   # Full analysis with SHAP explanations
 ├── data/
-│   └── empleados.xlsx             # 15K employee records
+│   └── empleados.xlsx             # 14,999 records (3,008 exact duplicates)
 ├── outputs/
 │   └── figures/                   # Exported visualizations
 ├── requirements.txt
@@ -63,10 +74,10 @@ employee-attrition-predictor/
 
 ## Methodology
 
-1. **EDA** — Distribution analysis by attrition status, department, salary level
+1. **Cleaning + EDA** — Duplicate removal; distribution analysis by attrition status, department, salary level
 2. **Feature Engineering** — Interaction terms, overwork flags, ordinal encoding
 3. **XGBoost** — Gradient boosting with class imbalance handling
-4. **Cross-Validation** — 5-fold stratified for robust metrics
+4. **Cross-Validation** — 5-fold stratified on the training split, same model as reported
 5. **SHAP Analysis** — Global importance + individual explanations
 6. **Risk Profiling** — Actionable segmentation for HR teams
 
